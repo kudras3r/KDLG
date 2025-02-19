@@ -1,12 +1,32 @@
 package main
 
+import (
+	"strconv"
+)
+
 // TODO :
-// add line field to token ?
-// add types
+// check for errors
+// add scolon replace option !
 
 type tokenCat int
 
-var iMap = map[string]tokenCat{
+var valid4Scolon = map[int]bool{
+	int(IDENT):     true,
+	int(INT16LIT):  true,
+	int(INT32LIT):  true,
+	int(INT64LIT):  true,
+	int(STRLIT):    true,
+	int(BOOLLIT):   true,
+	int(BRK):       true,
+	int(RET):       true,
+	int(DECR):      true,
+	int(INCR):      true,
+	int(RBRACE):    true,
+	int(RPAREN):    true,
+	int(RSBRACKET): true,
+}
+
+var idnMap = map[string]tokenCat{
 	"func":  FN,
 	"ret":   RET,
 	"for":   FOR,
@@ -17,10 +37,17 @@ var iMap = map[string]tokenCat{
 	"else":  ELSE,
 	"x0r":   XOR,
 	"class": CLASS,
+
+	"i16": INT16,
+	"i32": INT32,
+	"i64": INT64,
+	"f64": FLOAT64,
+	"boo": BOOL,
+	"str": STR,
 }
 
 func LookupType(idn string) (tokenCat, bool) {
-	if iCat, ok := iMap[idn]; ok {
+	if iCat, ok := idnMap[idn]; ok {
 		return iCat, true
 	}
 	return IDENT, false
@@ -32,14 +59,24 @@ const (
 	EOF
 
 	IDENT
+
+	// types
 	BYTE
 	INT16
 	INT32
 	INT64
-	FLOAT
+	FLOAT64
 	BOOL
-	BOOLLIT
 	STR
+
+	// literals
+	BYTELIT
+	INT16LIT
+	INT32LIT
+	INT64LIT
+	FLOAT64LIT
+	BOOLLIT
+	STRLIT
 
 	ASSIGN  // =
 	FASSIGN // <<=
@@ -84,25 +121,29 @@ const (
 )
 
 type Token struct {
-	cat tokenCat
-	col int
-	val string
+	cat  tokenCat
+	ln   int
+	ival int64
+	fval float64
+	sval string
+	bval bool
 }
 
 type Lexer struct {
-	sourse    string
-	sourseLen int
-	currPos   int
-	readPos   int
-	ch        byte
-	row       int
-	col       int
+	src     string
+	srcLen  int
+	currPos int
+	readPos int
+	ch      byte
+	row     int
+	col     int
+	lastT   Token
 }
 
 func New(input string) *Lexer {
 	l := &Lexer{
-		sourse:    input,
-		sourseLen: len(input),
+		src:    input,
+		srcLen: len(input),
 	}
 	l.readCh()
 	return l
@@ -115,143 +156,198 @@ func (l *Lexer) NextToken() Token {
 	case '!':
 		if l.peekCh() == '=' {
 			l.readCh()
-			t = newToken(NE, l.col)
+			t = newToken(NE, l.row)
 		}
 	case '=':
 		if l.peekCh() == '=' {
 			l.readCh()
-			t = newToken(EQ, l.col)
+			nx := l.peekCh()
+			if nx == ' ' || isAlpha(nx) || isNum(nx) {
+				t = newToken(EQ, l.row)
+			} else {
+				t = newToken(ILLEGAL, l.row)
+			}
+			l.readCh()
 		} else {
-			t = newToken(ASSIGN, l.col)
+			t = newToken(ASSIGN, l.row)
 		}
 	case '+':
 		if l.peekCh() == '=' {
 			l.readCh()
-			t = newToken(INCR, l.col)
+			t = newToken(INCR, l.row)
 		} else {
-			t = newToken(PLUS, l.col)
+			t = newToken(PLUS, l.row)
 		}
 	case '-':
 		if l.peekCh() == '=' {
 			l.readCh()
-			t = newToken(DECR, l.col)
+			t = newToken(DECR, l.row)
 		} else {
-			t = newToken(MIN, l.col)
+			t = newToken(MIN, l.row)
 		}
 	case '*':
-		t = newToken(MUL, l.col)
+		t = newToken(MUL, l.row)
 	case '/':
-		t = newToken(DIV, l.col)
+		t = newToken(DIV, l.row)
 	case '%':
-		t = newToken(REM, l.col)
+		t = newToken(REM, l.row)
 	case '<':
 		if l.peekCh() == '=' {
 			l.readCh()
-			t = newToken(LTE, l.col)
+			t = newToken(LTE, l.row)
 
 		} else if l.peekCh() == '<' {
 			l.readCh()
 			if l.peekCh() == '=' {
-				t = newToken(FASSIGN, l.col)
+				t = newToken(FASSIGN, l.row)
 			}
 		} else {
-			t = newToken(LT, l.col)
+			t = newToken(LT, l.row)
 		}
 	case '>':
 		if l.peekCh() == '=' {
 			l.readCh()
-			t = newToken(GTE, l.col)
+			t = newToken(GTE, l.row)
 		} else {
-			t = newToken(GT, l.col)
+			t = newToken(GT, l.row)
 		}
 	case '&':
 		if l.peekCh() == '&' {
 			l.readCh()
-			t = newToken(AND, l.col)
+			t = newToken(AND, l.row)
 		}
 	case '|':
 		if l.peekCh() == '|' {
 			l.readCh()
-			t = newToken(OR, l.col)
+			t = newToken(OR, l.row)
 		}
 	case ',':
-		t = newToken(COMMA, l.col)
+		t = newToken(COMMA, l.row)
 	case '.':
-		t = newToken(DOT, l.col)
-	case ';':
-		t = newToken(SCOLON, l.col)
+		t = newToken(ILLEGAL, l.row)
+		for !isWSpace(l.peekCh()) {
+			l.readCh()
+		}
+	// case ';':
+	// 	t = newToken(SCOLON, l.row)
 	case '(':
-		t = newToken(LPAREN, l.col)
+		t = newToken(LPAREN, l.row)
 	case ')':
-		t = newToken(RPAREN, l.col)
+		t = newToken(RPAREN, l.row)
 	case '{':
-		t = newToken(LBRACE, l.col)
+		t = newToken(LBRACE, l.row)
 	case '}':
-		t = newToken(RBRACE, l.col)
+		t = newToken(RBRACE, l.row)
 	case '[':
-		t = newToken(LSBRACKET, l.col)
+		t = newToken(LSBRACKET, l.row)
 	case ']':
-		t = newToken(RSBRACKET, l.col)
+		t = newToken(RSBRACKET, l.row)
+	case '#':
+		startPos := l.currPos + 1
+		for {
+			l.readCh()
+			if l.ch == '#' {
+				l.readCh()
+				break
+			}
+			if l.ch == 0 {
+				break
+			}
+		}
+		val := l.src[startPos : l.currPos-1]
+		t = newTokenWithVal(STRLIT, l.row, val)
+	case '\n':
+		ltc := l.lastT.cat
+		if valid4Scolon[int(ltc)] {
+			t = newToken(SCOLON, l.row)
+		}
+
 	case 0:
-		t = newToken(EOF, l.col)
+		t = newToken(EOF, l.row)
 	default:
 		if isAlpha(l.ch) {
 			idn := l.getIdn()
 			tCat, ok := LookupType(idn)
 			if ok {
-				t = newToken(tCat, l.col)
+				t = newToken(tCat, l.row)
 			} else {
-				t = newTokenWithVal(tCat, l.col, idn)
+				if idn == "true" || idn == "false" {
+					tCat = BOOLLIT
+				}
+				t = newTokenWithVal(tCat, l.row, idn)
 			}
 			return t
 		} else if isNum(l.ch) {
-			// TODO : float ints...
-			n := l.getInt()
-			t = newTokenWithVal(INT64, l.col, n)
+			ns := l.getNum()
+			isInt, dotsC := true, 0
+			for _, r := range ns {
+				if r == '.' {
+					isInt = false
+					dotsC++
+				}
+			}
+			if isInt {
+				t = newTokenWithVal(INT64LIT, l.row, ns)
+			} else {
+				t = newTokenWithVal(FLOAT64LIT, l.row, ns)
+				if dotsC > 1 {
+					t = newToken(ILLEGAL, l.row)
+				}
+			}
 		} else {
-			t = newToken(ILLEGAL, l.col)
+			t = newToken(ILLEGAL, l.row)
 		}
-
 	}
+	l.lastT = t
 	l.readCh()
 	return t
 }
 
-func newToken(cat tokenCat, col int) Token {
+func newToken(cat tokenCat, row int) Token {
 	return Token{
 		cat: cat,
-		col: col,
+		ln:  row + 1,
 	}
 }
 
-func newTokenWithVal(cat tokenCat, col int, val string) Token {
-	return Token{
-		cat: cat,
-		col: col,
-		val: val,
+func newTokenWithVal(cat tokenCat, row int, val string) Token {
+	var t Token
+
+	switch cat {
+	case INT64LIT:
+		n, _ := strconv.ParseInt(val, 10, 64)
+		t.ival = n
+	case FLOAT64LIT:
+		n, _ := strconv.ParseFloat(val, 64)
+		t.fval = n
+	case STRLIT:
+		t.sval = val
+	case BOOLLIT:
+		if val == "true" {
+			t.bval = true
+		}
+	default:
+		t.sval = val
 	}
+
+	t.cat = cat
+	t.ln = row + 1
+
+	return t
 }
 
-func (l *Lexer) getFloat() string {
+func (l *Lexer) getNum() string {
 	f := ""
 	for isNum(l.ch) || l.ch == '.' {
 		f += string(l.ch)
+		l.readCh()
 	}
 	return f
 }
 
-func (l *Lexer) getInt() string {
-	n := ""
-	for isNum(l.ch) {
-		n += string(l.ch)
-		l.readCh()
-	}
-	return n
-}
-
 func (l *Lexer) getIdn() string {
 	idn := ""
-	for isAlpha(l.ch) {
+	for isAlpha(l.ch) || isNum(l.ch) {
 		idn += string(l.ch)
 		l.readCh()
 	}
@@ -268,17 +364,17 @@ func (l *Lexer) readCh() {
 		l.row++
 	}
 
-	l.ch = l.sourse[l.readPos]
+	l.ch = l.src[l.readPos]
 	l.currPos = l.readPos
 	l.readPos++
 	l.col++
 }
 
 func (l *Lexer) peekCh() byte {
-	if l.readPos > l.sourseLen {
+	if l.readPos > l.srcLen {
 		return 0
 	}
-	return l.sourse[l.readPos]
+	return l.src[l.readPos]
 }
 
 func (l *Lexer) skipWS() {
@@ -287,11 +383,11 @@ func (l *Lexer) skipWS() {
 	}
 }
 
-func (l *Lexer) skipComm() {
-	for !isNLine(l.ch) {
-		l.readCh()
-	}
-}
+// func (l *Lexer) skipComm() {
+// 	for !isNLine(l.ch) {
+// 		l.readCh()
+// 	}
+// }
 
 func isNum(c byte) bool {
 	return c >= '0' && c <= '9'
@@ -301,12 +397,8 @@ func isAlpha(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 }
 
-func isAlphaNum(c byte) bool {
-	return isAlpha(c) || isNum(c)
-}
-
 func (l *Lexer) atEOF() bool {
-	return l.readPos >= l.sourseLen
+	return l.readPos >= l.srcLen
 }
 
 func isWSpace(c byte) bool {
