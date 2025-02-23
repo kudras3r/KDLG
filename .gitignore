@@ -2,3 +2,5 @@ TODO
 .vscode/
 spec.md
 parser/
+parser.y
+y.output

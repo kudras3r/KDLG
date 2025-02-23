@@ -32,7 +32,7 @@ func TestTokenGeneration(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		tok := lexer.NxToken()
+		tok := lexer.NextToken()
 		if tok.cat != test.expectedCat {
 			t.Errorf("Expected token category %d, got %d", test.expectedCat, tok.cat)
 		}
@@ -47,7 +47,7 @@ func TestCommentHandling(t *testing.T) {
 	lexer := New(input)
 
 	for {
-		tok := lexer.NxToken()
+		tok := lexer.NextToken()
 		if tok.cat == EOF {
 			break
 		}
@@ -61,7 +61,7 @@ func TestEndOfInput(t *testing.T) {
 	input := ""
 	lexer := New(input)
 
-	tok := lexer.NxToken()
+	tok := lexer.NextToken()
 	if tok.cat != EOF {
 		t.Errorf("Expected EOF token, got %d", tok.cat)
 	}

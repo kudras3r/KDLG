@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 // TODO :
 
 type tokenCat int
@@ -48,71 +50,71 @@ func LookupType(idn string) (tokenCat, bool) {
 
 }
 
-const (
-	ILLEGAL tokenCat = iota
-	EOF
+// const (
+// 	ILLEGAL tokenCat = iota
+// 	EOF
 
-	IDENT
+// 	IDENT
 
-	// types
-	BYTE
-	INT16
-	INT32
-	INT64
-	FLOAT64
-	BOOL
-	STR
+// 	// types
+// 	BYTE
+// 	INT16
+// 	INT32
+// 	INT64
+// 	FLOAT64
+// 	BOOL
+// 	STR
 
-	// literals
-	BYTELIT
-	INT16LIT
-	INT32LIT
-	INT64LIT
-	FLOAT64LIT
-	BOOLLIT
-	STRLIT
+// 	// literals
+// 	BYTELIT
+// 	INT16LIT
+// 	INT32LIT
+// 	INT64LIT
+// 	FLOAT64LIT
+// 	BOOLLIT
+// 	STRLIT
 
-	ASSIGN  // =
-	FASSIGN // <<=
-	PLUS    // +
-	MIN     // -
-	DIV     // /
-	MUL     // *
-	REM     // %
+// 	ASSIGN  // =
+// 	FASSIGN // <<=
+// 	PLUS    // +
+// 	MIN     // -
+// 	DIV     // /
+// 	MUL     // *
+// 	REM     // %
 
-	EQ   // ==
-	NE   // !=
-	GT   // >
-	GTE  // >=
-	LT   // <
-	LTE  // <=
-	AND  // &&
-	OR   // ||
-	INCR // +=
-	DECR // -=
+// 	EQ   // ==
+// 	NE   // !=
+// 	GT   // >
+// 	GTE  // >=
+// 	LT   // <
+// 	LTE  // <=
+// 	AND  // &&
+// 	OR   // ||
+// 	INCR // +=
+// 	DECR // -=
 
-	DOT       // .
-	COMMA     // ,
-	SCOLON    // ;
-	LPAREN    // (
-	RPAREN    // )
-	LBRACE    // {
-	RBRACE    // }
-	LSBRACKET // [
-	RSBRACKET // ]
+// 	DOT       // .
+// 	COMMA     // ,
+// 	SCOLON    // ;
+// 	LPAREN    // (
+// 	RPAREN    // )
+// 	LBRACE    // {
+// 	RBRACE    // }
+// 	LSBRACKET // [
+// 	RSBRACKET // ]
 
-	// keywords
-	MAIN
-	FN
-	RET
-	IF
-	ELSE
-	FOR
-	BRK
-	NXT
-	XOR
-	CLASS
-)
+// 	// keywords
+// 	MAIN
+// 	FN
+// 	RET
+// 	IF
+// 	ELSE
+// 	FOR
+// 	BRK
+// 	NXT
+// 	XOR
+// 	CLASS
+// )
 
 type Token struct {
 	cat tokenCat
@@ -145,7 +147,11 @@ func New(input string) *Lexer {
 	return l
 }
 
-func (l *Lexer) NxToken() Token {
+func (l *Lexer) Error(s string) {
+	fmt.Println(s)
+}
+
+func (l *Lexer) Lex(lval *yySymType) int {
 	var t Token
 	l.skipWS()
 
@@ -156,7 +162,164 @@ func (l *Lexer) NxToken() Token {
 			for !isNLine(l.ch) && !l.atEOF() {
 				l.readCh()
 			}
-			return l.NxToken()
+			return l.Lex(lval)
+		}
+	case '!':
+		if l.peekCh() == '=' {
+			l.readCh()
+			t = newToken(NE, l.row, l.col)
+		}
+	case '=':
+		if l.peekCh() == '=' {
+			l.readCh()
+			t = newToken(EQ, l.row, l.col)
+		} else {
+			t = newToken(ASSIGN, l.row, l.col)
+		}
+	case '+':
+		if l.peekCh() == '=' {
+			l.readCh()
+			t = newToken(INCR, l.row, l.col)
+		} else {
+			t = newToken(PLUS, l.row, l.col)
+		}
+	case '-':
+		if l.peekCh() == '=' {
+			l.readCh()
+			t = newToken(DECR, l.row, l.col)
+		} else {
+			t = newToken(MIN, l.row, l.col)
+		}
+	case '*':
+		t = newToken(MUL, l.row, l.col)
+	case '/':
+		t = newToken(DIV, l.row, l.col)
+	case '%':
+		t = newToken(REM, l.row, l.col)
+	case '<':
+		if l.peekCh() == '=' {
+			l.readCh()
+			t = newToken(LTE, l.row, l.col)
+
+		} else if l.peekCh() == '<' {
+			l.readCh()
+			if l.peekCh() == '=' {
+				l.readCh()
+				t = newToken(FASSIGN, l.row, l.col)
+			}
+		} else {
+			t = newToken(LT, l.row, l.col)
+		}
+	case '>':
+		if l.peekCh() == '=' {
+			l.readCh()
+			t = newToken(GTE, l.row, l.col)
+		} else {
+			t = newToken(GT, l.row, l.col)
+		}
+	case '&':
+		if l.peekCh() == '&' {
+			l.readCh()
+			t = newToken(AND, l.row, l.col)
+		}
+	case '|':
+		if l.peekCh() == '|' {
+			l.readCh()
+			t = newToken(OR, l.row, l.col)
+		}
+	case ',':
+		t = newToken(COMMA, l.row, l.col)
+	case '.':
+		t = newToken(ILLEGAL, l.row, l.col)
+		for !isWSpace(l.peekCh()) {
+			l.readCh()
+		}
+	case ';':
+		t = newToken(SCOLON, l.row, l.col)
+	case '(':
+		t = newToken(LPAREN, l.row, l.col)
+	case ')':
+		t = newToken(RPAREN, l.row, l.col)
+	case '{':
+		t = newToken(LBRACE, l.row, l.col)
+	case '}':
+		t = newToken(RBRACE, l.row, l.col)
+	case '[':
+		t = newToken(LSBRACKET, l.row, l.col)
+	case ']':
+		t = newToken(RSBRACKET, l.row, l.col)
+	case '#':
+		startPos := l.currPos + 1
+		for {
+			l.readCh()
+			if l.ch == '#' {
+				l.readCh()
+				break
+			}
+			if l.ch == 0 {
+				break
+			}
+		}
+		val := l.src[startPos : l.currPos-1]
+		t = newTokenWithVal(STRLIT, l.row, l.col, val)
+	case '\n':
+		l.readCh()
+	case 0:
+		t = newToken(EOF, l.row, l.col)
+	default:
+		if isAlpha(l.ch) {
+			idn := l.getIdn()
+			tCat, ok := LookupType(idn)
+			if ok {
+				t = newToken(tCat, l.row, l.col)
+			} else {
+				if idn == "true" || idn == "false" {
+					tCat = BOOLLIT
+				}
+				lval.Str = idn
+				t = newTokenWithVal(tCat, l.row, l.col, idn)
+			}
+		} else if isNum(l.ch) {
+			ns := l.getNum()
+			isInt, dotsC := true, 0
+			for _, r := range ns {
+				if r == '.' {
+					isInt = false
+					dotsC++
+				}
+			}
+			if isInt {
+				lval.Str = ns
+				t = newTokenWithVal(INT64LIT, l.row, l.col, ns)
+			} else {
+				lval.Str = ns
+				t = newTokenWithVal(FLOAT64LIT, l.row, l.col, ns)
+				if dotsC > 1 {
+					t = newToken(ILLEGAL, l.row, l.col)
+				}
+			}
+		} else {
+			t = newToken(ILLEGAL, l.row, l.col)
+		}
+	}
+	l.lastT = t
+	l.readCh()
+
+	return int(t.cat)
+}
+
+func (l *Lexer) NextToken() Token {
+	var t Token
+	l.skipWS()
+
+	switch l.ch {
+	case '@':
+		if l.peekCh() == '@' {
+			l.readCh()
+			for !isNLine(l.ch) && !l.atEOF() {
+				l.readCh()
+			}
+			return l.NextToken()
 		}
 	case '!':
 		if l.peekCh() == '=' {
