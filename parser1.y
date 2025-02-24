@@ -1,94 +1,72 @@
 %{
 package main
+import "fmt"
+
 %}
 
-%union{
-Str string
-Int int
-Boo bool
-Flt float64
+%union {
+    Int int
+    Str string
 }
 
-%token BYTELIT INT16LIT INT32LIT INT64LIT FLOAT64LIT BOOLLIT STRLIT
-%token IDENT BYTE INT16 INT32 INT64 FLOAT64 BOOL STR
-%token MAIN FN RET IF ELSE FOR BRK NXT XOR CLASS ETERN
-%token INCR DECR EQ NE GT GTE LT LTE AND OR
-%token ASSIGN
+%token INT64LIT
+%token IDENT
+%token FN
+%token LPAREN RPAREN LBRACE RBRACE
 %token SCOLON
+%token ASSIGN
+%token PLUS MIN MUL DIV
+%token IF ELSE
+%token EQ NE GT LT GTE LTE
 
 %%
 
-FieldDecl: Type VarDecls SCOLON ;
-Type: BYTE | INT16 | INT32 | INT64 | FLOAT64 | BOOL | STR | Name ;
-Name: IDENT | QualifiedName ;
+// Программа состоит из списка операторов
+Program: StmtList ;
 
-QualifiedName: Name '.' IDENT ;
-VarDecls: VarDecl | VarDecls ',' VarDecl ;
-VarDecl: IDENT | VarDecl '[' ']' ;
+// Список операторов
+StmtList: Stmt | StmtList Stmt | ;
 
-FnDecl: FN IDENT '(' FormalParmLstOpt ')' Block ;
-FormalParmLstOpt: FormalParm | FormalParmLst ',' FormalParm ;
-FormalParmLst: FormalParm | FormalParmLst ',' FormalParm ;
-FormalParm: Type VarDecl ;
+// Оператор
+Stmt: FnDecl
+    | VarDecl
+    | IfStmt
+    | ExprStmt;
 
-Block: '{' BlockStmtsOpt '}' ;
-BlockStmtsOpt: BlockStmts | ;
-BlockStmts: BlockStmt | BlockStmts BlockStmt ;
-BlockStmt: LocalVarDeclStmt | Stmt ;
-LocalVarDeclStmt: LocalVarDecl ';' ;
-LocalVarDecl: Type VarDecls ;
+ExprStmt: Expr SCOLON;
 
-Stmt: Block | ';' | ExprStmt | BreakStmt | RetStmt
-     | IfThenStmt | IfThenElseStmt | IfThenElseIfStmt 
-     | ForStmt ;
+// Объявление функции
+FnDecl: FN IDENT LPAREN FormalParmLstOpt RPAREN LBRACE StmtList RBRACE;
 
-ExprStmt: StmtExpr ';' ;
-StmtExpr: Assignment | MethodCall | InstantiationExpr ;
+// Список параметров (опционально)
+FormalParmLstOpt: FormalParmLst | ;
 
-IfThenStmt: IF '(' Expr ')' Block ;
-IfThenElseStmt: IF '(' Expr ')' Block ELSE Block ;
-IfThenElseIfStmt: IF '(' Expr ')' Block ElseIfSequence
-     | IF '(' Expr ')' Block ElseIfSequence ELSE Block ;
-ElseIfSequence: ElseIfStmt | ElseIfSequence ElseIfStmt ;
-ElseIfStmt: ELSE IfThenStmt ;
+// Список параметров
+FormalParmLst: FormalParm | FormalParmLst ',' FormalParm;
 
-ForStmt: FOR '(' ForInit ';' ExprOpt ';' ForUpdate ')' Block ;
-ForInit: StmtExprLst | LocalVarDecl | ;
-ExprOpt: Expr | ;
-ForUpdate: StmtExprLst | ;
-StmtExprLst: StmtExpr | StmtExprLst ',' StmtExpr ;
+// Параметр
+FormalParm: IDENT;
 
-BreakStmt: BRK ';' ;
-RetStmt: RET ExprOpt ';' ;
+// Объявление переменной
+VarDecl: IDENT ASSIGN Expr SCOLON;
 
-Primary:  Literal | '(' Expr ')' | FieldAccess | MethodCall ;
-Literal: INT64LIT	| FLOAT64LIT | BOOLLIT | STRLIT ;
+// Условный оператор
+IfStmt: IF '(' Expr ')' LBRACE StmtList RBRACE ElseClause;
 
-InstantiationExpr: Name '(' ArgLstOpt ')' ;
-ArgLst: Expr | ArgLst ',' Expr ;
-ArgLstOpt: ArgLst | ;
-FieldAccess: Primary '.' IDENT ;
+// Альтернативный оператор
+ElseClause: ELSE LBRACE StmtList RBRACE | ;
 
-MethodCall: Name '(' ArgLstOpt ')'
-	| Name '{' ArgLstOpt '}'
-	| Primary '.' IDENT '(' ArgLstOpt ')'
-	| Primary '.' IDENT '{' ArgLstOpt '}' ;
+// Выражение
+Expr: Term
+    | Expr PLUS Term
+    | Expr MIN Term;
 
-PostFixExpr: Primary | Name ;
-UnaryExpr:  '-' UnaryExpr | '!' UnaryExpr | PostFixExpr ;
-MulExpr: UnaryExpr | MulExpr '*' UnaryExpr
-    | MulExpr '/' UnaryExpr | MulExpr '%' UnaryExpr ;
-AddExpr: MulExpr | AddExpr '+' MulExpr | AddExpr '-' MulExpr ;
-RelOp: LTE | GTE | '<' | '>' ;
-RelExpr: AddExpr | RelExpr RelOp AddExpr ;
+// Член
+Term: Factor
+    | Term MUL Factor
+    | Term DIV Factor;
 
-EqExpr: RelExpr | EqExpr EQ RelExpr | EqExpr NE RelExpr ;
-CondAndExpr: EqExpr | CondAndExpr AND EqExpr ;
-CondOrExpr: CondAndExpr | CondOrExpr OR CondAndExpr ;
-
-Expr: CondOrExpr | Assignment ;
-Assignment: LeftHandSide AssignOp Expr ;
-LeftHandSide: Name | FieldAccess ;
-AssignOp: ASSIGN | INCR | DECR ;
-
-
+// Фактор
+Factor: INT64LIT
+      | IDENT
+      | LPAREN Expr RPAREN;

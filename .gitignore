@@ -4,3 +4,4 @@ spec.md
 parser/
 parser.y
 y.output
+legacy/
