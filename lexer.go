@@ -6,20 +6,23 @@ import "fmt"
 // auto scol
 
 var idnMap = map[string]Token{
-	"func":  FN,
-	"ret":   RET,
-	"for":   FOR,
-	"brk":   BRK,
-	"next":  NXT,
-	"if":    IF,
-	"main":  MAIN,
-	"else":  ELSE,
-	"x0r":   XOR,
-	"class": CLASS,
+	"func":        FN,
+	"ret":         RET,
+	"for":         FOR,
+	"brk":         BRK,
+	"next":        NXT,
+	"if":          IF,
+	"main":        MAIN,
+	"else":        ELSE,
+	"x0r":         XOR,
+	"class":       CLASS,
+	"constructor": CONSTRUCT,
 
+	"chr": CHR,
 	"i16": INT16,
 	"i32": INT32,
 	"i64": INT64,
+	"f32": FLOAT32,
 	"f64": FLOAT64,
 	"boo": BOOL,
 	"str": STR,
@@ -39,30 +42,30 @@ const (
 	// IDENT
 
 	//types
-	BYTE
-	INT16
-	INT32
-	INT64
-	FLOAT64
-	BOOL
-	STR
+	// CHR
+	// INT16
+	// INT32
+	// INT64
+	// FLOAT64
+	// BOOL
+	// STR
 
 	// literals
 	BYTELIT
-	INT16LIT
-	INT32LIT
-	// INT64LIT
-	FLOAT64LIT
-	BOOLLIT
-	STRLIT
+	// INT16LIT
+	// INT32LIT
+	// // INT64LIT
+	// FLOAT64LIT
+	// BOOLLIT
+	// STRLIT
 
 	// ASSIGN  // =
-	FASSIGN // <<=
+	// FASSIGN // <<=
 	// PLUS    // +
 	// MIN // -
 	// DIV     // /
 	// MUL     // *
-	REM // %
+	// REM // %
 
 	// EQ   // ==
 	// NE   // !=
@@ -70,32 +73,32 @@ const (
 	// GTE  // >=
 	// LT   // <
 	// LTE  // <=
-	AND  // &&
-	OR   // ||
-	INCR // +=
-	DECR // -=
+	// AND  // &&
+	// OR   // ||
+	// INCR // +=
+	// DECR // -=
 
-	DOT   // .
-	COMMA // ,
+	// DOT   // .
+	// COMMA // ,
 	// SCOLON    // ;
 	// LPAREN    // (
 	// RPAREN    // )
 	// LBRACE    // {
 	// RBRACE    // }
-	LSBRACKET // [
-	RSBRACKET // ]
+	// LSBRACKET // [
+	// RSBRACKET // ]
 
 	// keywords
 	MAIN
 	// FN
-	RET
+	// RET
 	// IF
 	// ELSE
-	FOR
-	BRK
+	// FOR
+	// BRK
 	NXT
 	XOR
-	CLASS
+	// CLASS
 )
 
 type Token int
@@ -140,6 +143,8 @@ func (l *Lexer) Lex(lval *yySymType) int {
 		if l.peekCh() == '=' {
 			l.readCh()
 			t = NE
+		} else {
+			t = NOT
 		}
 	case '=':
 		if l.peekCh() == '=' {
@@ -200,7 +205,7 @@ func (l *Lexer) Lex(lval *yySymType) int {
 			t = OR
 		}
 	case ',':
-		t = EOF
+		t = COMMA
 	case '.':
 		t = ILLEGAL
 		for !isWSpace(l.peekCh()) {
@@ -234,7 +239,7 @@ func (l *Lexer) Lex(lval *yySymType) int {
 		}
 		val := l.src[startPos : l.currPos-1]
 		t = STRLIT
-		lval.Str = val
+		lval.S = val
 	case '\n':
 		l.readCh()
 	case 0:
@@ -249,7 +254,7 @@ func (l *Lexer) Lex(lval *yySymType) int {
 				if idn == "true" || idn == "false" {
 					tCat = BOOLLIT
 				}
-				lval.Str = idn
+				lval.S = idn
 				t = tCat
 			}
 		} else if isNum(l.ch) {
@@ -262,10 +267,10 @@ func (l *Lexer) Lex(lval *yySymType) int {
 				}
 			}
 			if isInt {
-				lval.Str = ns
+				lval.S = ns
 				t = INT64LIT
 			} else {
-				lval.Str = ns
+				lval.S = ns
 				t = FLOAT64LIT
 				if dotsC > 1 {
 					t = EOF
