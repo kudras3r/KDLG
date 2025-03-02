@@ -16,7 +16,7 @@ func main() {
 		log.Fatalf("error when reading file: %v", err)
 	}
 
-	lexer := New(string(text))
+	lexer := NewLexer(string(text))
 
 	parser := yyNewParser()
 

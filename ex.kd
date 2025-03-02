@@ -1,7 +1,58 @@
-a i32;
-a,b,c i64;
-a=5;
+func someFunc(a i64, b chr) {
+    @@ docs comment for someFunc
 
-for(a <<= 1 ; a < 10; a += 1) {}
+    c f32;
+    d = 12.4;
+    e <<= true;
 
-class asd{}
+    s str;
+    s = #some_string#;
+}
+
+class SomeClass {
+    constructor(a i32) {
+        @@ comment for SomeClass constructor
+        b <<= a % 3;
+    }
+
+    func ifStatements(a f32) boo {
+        if (a == 3.14) {
+            @@ do smthg
+        }
+
+        if (false) {
+            @@ do smthg
+        } else {
+            @@ do smthg else
+        }
+
+        if (false) {
+            @@ do smthg
+        } else if (false) {
+            @@ do smthg else
+        } else {
+            @@ do smthg finaly
+        }
+
+        ret false;
+    }
+
+    func forStatement() i64 {
+        for (etern) {
+            @@ eternity cycle
+
+            brk;  @@ break
+        } 
+
+        for (i <<= 0; i < 10; i += 1) {
+            if (false) {
+                ret 100;  @@ return
+            } else {
+                nxt;  @@ next
+            }
+        }
+
+        b <<= (10 + 20) / 30;
+    }
+}
+

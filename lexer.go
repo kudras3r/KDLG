@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 // TODO :
 // auto scol
@@ -10,13 +13,14 @@ var idnMap = map[string]Token{
 	"ret":         RET,
 	"for":         FOR,
 	"brk":         BRK,
-	"next":        NXT,
+	"nxt":         NXT,
 	"if":          IF,
 	"main":        MAIN,
 	"else":        ELSE,
 	"x0r":         XOR,
 	"class":       CLASS,
 	"constructor": CONSTRUCT,
+	"etern":       ETERN,
 
 	"chr": CHR,
 	"i16": INT16,
@@ -37,8 +41,7 @@ func LookupType(idn string) (Token, bool) {
 
 const (
 	EOF = iota
-	ILLEGAL
-
+	UNK
 	// IDENT
 
 	//types
@@ -51,7 +54,6 @@ const (
 	// STR
 
 	// literals
-	BYTELIT
 	// INT16LIT
 	// INT32LIT
 	// // INT64LIT
@@ -96,7 +98,7 @@ const (
 	// ELSE
 	// FOR
 	// BRK
-	NXT
+	// NXT
 	XOR
 	// CLASS
 )
@@ -113,7 +115,7 @@ type Lexer struct {
 	col     int
 }
 
-func New(input string) *Lexer {
+func NewLexer(input string) *Lexer {
 	l := &Lexer{
 		src:    input,
 		srcLen: len(input),
@@ -123,7 +125,11 @@ func New(input string) *Lexer {
 }
 
 func (l *Lexer) Error(s string) {
-	fmt.Println(s)
+	l.ErrorAt(s)
+}
+
+func (l *Lexer) ErrorAt(s string) {
+	fmt.Printf("%s on line: %d, column: %d\n", s, l.row+1, l.col)
 }
 
 func (l *Lexer) Lex(lval *yySymType) int {
@@ -139,6 +145,7 @@ func (l *Lexer) Lex(lval *yySymType) int {
 			}
 			return l.Lex(lval)
 		}
+		l.ErrorAt("invalid comment")
 	case '!':
 		if l.peekCh() == '=' {
 			l.readCh()
@@ -207,10 +214,7 @@ func (l *Lexer) Lex(lval *yySymType) int {
 	case ',':
 		t = COMMA
 	case '.':
-		t = ILLEGAL
-		for !isWSpace(l.peekCh()) {
-			l.readCh()
-		}
+		t = DOT
 	case ';':
 		t = SCOLON
 	case '(':
@@ -240,10 +244,11 @@ func (l *Lexer) Lex(lval *yySymType) int {
 		val := l.src[startPos : l.currPos-1]
 		t = STRLIT
 		lval.S = val
+		l.readPos--
 	case '\n':
 		l.readCh()
 	case 0:
-		t = 0
+		t = EOF
 	default:
 		if isAlpha(l.ch) {
 			idn := l.getIdn()
@@ -253,8 +258,12 @@ func (l *Lexer) Lex(lval *yySymType) int {
 			} else {
 				if idn == "true" || idn == "false" {
 					tCat = BOOLLIT
+					if idn == "true" {
+						lval.B = true
+					} else {
+						lval.B = false
+					}
 				}
-				lval.S = idn
 				t = tCat
 			}
 		} else if isNum(l.ch) {
@@ -267,17 +276,19 @@ func (l *Lexer) Lex(lval *yySymType) int {
 				}
 			}
 			if isInt {
-				lval.S = ns
+				n, _ := strconv.ParseInt(ns, 10, 64)
+				lval.I = int(n)
 				t = INT64LIT
 			} else {
-				lval.S = ns
-				t = FLOAT64LIT
 				if dotsC > 1 {
-					t = EOF
+					l.ErrorAt("invalid float literal")
 				}
+				n, _ := strconv.ParseFloat(ns, 64)
+				lval.F = n
+				t = FLOAT64LIT
 			}
 		} else {
-			t = EOF
+			t = UNK
 		}
 	}
 	l.readCh()
@@ -286,13 +297,13 @@ func (l *Lexer) Lex(lval *yySymType) int {
 }
 
 func (l *Lexer) getNum() string {
-	f := ""
+	n := ""
 	for isNum(l.ch) || l.ch == '.' {
-		f += string(l.ch)
+		n += string(l.ch)
 		l.readCh()
 	}
 	l.readPos--
-	return f
+	return n
 }
 
 func (l *Lexer) getIdn() string {
@@ -313,6 +324,7 @@ func (l *Lexer) readCh() {
 
 	if isNLine(l.ch) {
 		l.row++
+		l.col = 0
 	}
 
 	l.ch = l.src[l.readPos]
