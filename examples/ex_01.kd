@@ -1,13 +1,14 @@
 func someFunc(a i64, b chr) {
     @@ docs comment for someFunc
 
-    c f32;
-    d = 12.4;
+    var c f32;
+    c = 12.4;
     e <<= true;
 
     s str;
     s = #some_string#;
 }
+
 
 class SomeClass {
     constructor(a i32) {
@@ -36,7 +37,7 @@ class SomeClass {
 
         ret false;
     }
-
+    
     func forStatement() i64 {
         for (etern) {
             @@ eternity cycle
@@ -50,9 +51,8 @@ class SomeClass {
             } else {
                 nxt;  @@ next
             }
-        }
+        } 
 
-        b <<= (10 + 20) / 30;
+        b <<= (10 + 20) / 30.2;
     }
 }
-

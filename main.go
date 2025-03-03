@@ -1,6 +1,7 @@
 package main
 
 import (
+	"kdlg/lexer"
 	"log"
 	"os"
 )
@@ -16,10 +17,6 @@ func main() {
 		log.Fatalf("error when reading file: %v", err)
 	}
 
-	lexer := NewLexer(string(text))
-
-	parser := yyNewParser()
-
-	result := parser.Parse(lexer)
-	log.Printf("parser result: %d", result)
+	lexer := lexer.NewLexer(string(text))
+	_ = lexer
 }
